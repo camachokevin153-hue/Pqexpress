@@ -1,0 +1,93 @@
+@startuml Diagrama de Secuencia - Flujo de Entrega
+!theme cerulean-outline
+title PQExpress - Flujo Completo de Entrega de Paquete
+
+actor "Repartidor" as user
+participant "App Flutter" as app
+participant "AuthProvider" as auth
+participant "EnviosProvider" as envios
+participant "CameraService" as camera
+participant "LocationService" as gps
+participant "FastAPI" as api
+database "MySQL" as db
+
+== Autenticación ==
+user -> app : Abre la aplicación
+app -> auth : verificarSesion()
+auth -> api : GET /api/auth/validar-token
+api -> db : SELECT token FROM tokens_sesion
+alt Token válido
+    api --> auth : 200 OK
+    auth --> app : Usuario autenticado
+else Token inválido/expirado
+    api --> auth : 401 Unauthorized
+    auth --> app : Navegar a Login
+    user -> app : Ingresa credenciales
+    app -> auth : login(usuario, password)
+    auth -> api : POST /api/auth/login
+    api -> db : SELECT * FROM repartidores
+    api -> api : bcrypt.verify(password, hash)
+    api -> api : Generar JWT
+    api -> db : INSERT INTO tokens_sesion
+    api --> auth : {token, usuario}
+    auth --> app : Login exitoso
+end
+
+== Consulta de Envíos ==
+app -> envios : cargarEnvios(token)
+envios -> api : GET /api/envios
+api -> db : SELECT * FROM envios\nWHERE id_repartidor = ?
+db --> api : Lista de envíos
+api --> envios : [Envio, Envio, ...]
+envios --> app : Actualizar UI
+
+== Selección de Paquete ==
+user -> app : Selecciona envío
+app -> envios : obtenerDetalleEnvio(id, token)
+envios -> api : GET /api/envios/{id}
+api -> db : SELECT * FROM envios WHERE id = ?
+db --> api : Datos del envío
+api --> envios : Envio completo
+envios --> app : Mostrar detalle
+
+== Iniciar Ruta ==
+user -> app : Click "Iniciar Ruta"
+app -> envios : iniciarRuta(id, token)
+envios -> api : POST /api/envios/{id}/iniciar-ruta
+api -> db : UPDATE envios\nSET estatus = 'en_camino'
+db --> api : OK
+api --> envios : Ruta iniciada
+envios --> app : Navegar al mapa
+
+== Confirmación de Entrega ==
+user -> app : Click "Confirmar Entrega"
+
+app -> camera : capturarFoto()
+camera -> camera : image_picker.pickImage()
+camera --> app : Uint8List (foto)
+
+app -> gps : obtenerUbicacionActual()
+gps -> gps : geolocator.getCurrentPosition()
+gps --> app : Position(lat, lng, precision)
+
+user -> app : Ingresa nombre receptor
+user -> app : Click "Confirmar"
+
+app -> envios : confirmarEntrega(confirmacion, token)
+envios -> api : POST /api/envios/{id}/confirmar-entrega\n(multipart/form-data)
+api -> db : INSERT INTO confirmaciones_entrega
+api -> db : UPDATE envios SET estatus = 'completado'
+db --> api : OK
+api --> envios : Entrega registrada
+envios --> app : Navegar a Home
+
+== Logout ==
+user -> app : Click "Cerrar Sesión"
+app -> auth : logout()
+auth -> api : POST /api/auth/logout
+api -> db : UPDATE tokens_sesion\nSET token_activo = FALSE
+db --> api : OK
+api --> auth : Sesión cerrada
+auth --> app : Navegar a Login
+
+@enduml

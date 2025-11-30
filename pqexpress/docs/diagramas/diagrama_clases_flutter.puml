@@ -1,0 +1,216 @@
+@startuml Diagrama de Clases - Flutter (Frontend)
+!theme cerulean-outline
+title PQExpress - Diagrama de Clases Flutter
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Models" #E8F5E9 {
+    class Usuario {
+        +int idRepartidor
+        +String usuario
+        +String correo
+        +String nombreCompleto
+        +String? numTelefono
+        +bool estaActivo
+        +DateTime? fechaAlta
+        +DateTime? ultimaConexion
+        --
+        +Usuario.fromJson(Map json)
+        +Map<String, dynamic> toJson()
+    }
+    
+    class Envio {
+        +int idEnvio
+        +String numeroGuia
+        +int? idRepartidor
+        +String receptorNombre
+        +String? receptorTelefono
+        +String calle
+        +String? numeroExterior
+        +String? colonia
+        +String? municipioCiudad
+        +String? codigoPostal
+        +String? referenciasAdicionales
+        +double? latDestino
+        +double? lngDestino
+        +String estatusEnvio
+        +DateTime? fechaAsignacion
+        +DateTime? fechaCompletado
+        --
+        +Envio.fromJson(Map json)
+        +String get direccionCompleta
+        +bool get tieneUbicacion
+    }
+    
+    class ConfirmacionEntrega {
+        +int idEnvio
+        +double latConfirmacion
+        +double lngConfirmacion
+        +double? precisionMetros
+        +String? imagenEvidencia
+        +String? nombreReceptor
+        +String resultadoEntrega
+        +String? comentarios
+        --
+        +Map<String, dynamic> toJson()
+    }
+}
+
+package "Providers" #E3F2FD {
+    class AuthProvider {
+        -Usuario? _usuario
+        -String? _token
+        -bool _cargando
+        -String? _error
+        -ApiService _apiService
+        --
+        +Usuario? get usuario
+        +String? get token
+        +bool get estaAutenticado
+        +bool get cargando
+        +String? get error
+        --
+        +Future<bool> login(String usuario, String password)
+        +Future<void> logout()
+        +Future<void> verificarSesion()
+        -void _limpiarSesion()
+    }
+    
+    class EnviosProvider {
+        -List<Envio> _envios
+        -Envio? _envioActual
+        -bool _cargando
+        -String? _error
+        -ApiService _apiService
+        --
+        +List<Envio> get envios
+        +List<Envio> get enviosPendientes
+        +List<Envio> get enviosEnCamino
+        +List<Envio> get enviosCompletados
+        +Envio? get envioActual
+        +bool get cargando
+        --
+        +Future<void> cargarEnvios(String token)
+        +Future<void> obtenerDetalleEnvio(int id, String token)
+        +Future<bool> iniciarRuta(int id, String token)
+        +Future<bool> confirmarEntrega(ConfirmacionEntrega conf, String token)
+    }
+}
+
+package "Services" #FFF3E0 {
+    class ApiService {
+        -String baseUrl
+        -http.Client _client
+        --
+        +Future<Map> login(String usuario, String password)
+        +Future<void> logout(String token)
+        +Future<Usuario> obtenerPerfil(String token)
+        +Future<List<Envio>> obtenerEnvios(String token)
+        +Future<Envio> obtenerEnvio(int id, String token)
+        +Future<bool> iniciarRuta(int id, String token)
+        +Future<bool> confirmarEntrega(ConfirmacionEntrega, String token)
+        -Map<String, String> _headers(String? token)
+    }
+    
+    class LocationService {
+        -Position? _ultimaPosicion
+        --
+        +Future<bool> verificarPermisos()
+        +Future<Position?> obtenerUbicacionActual()
+        +Future<bool> abrirConfiguracion()
+        +double calcularDistancia(lat1, lng1, lat2, lng2)
+    }
+    
+    class CameraService {
+        -Uint8List? _imagenBytes
+        --
+        +Future<Uint8List?> capturarFoto()
+        +Future<Uint8List?> seleccionarDeGaleria()
+        +String? imagenABase64(Uint8List? bytes)
+        +void limpiarImagen()
+    }
+    
+    class RouteService {
+        -String osrmBaseUrl
+        --
+        +Future<List<LatLng>> obtenerRuta(origen, destino)
+        +Future<Map> obtenerInfoRuta(origen, destino)
+        -List<LatLng> _decodificarPolyline(String)
+    }
+}
+
+package "Screens" #FCE4EC {
+    class SplashScreen {
+        +void verificarAutenticacion()
+        +void navegarALogin()
+        +void navegarAHome()
+    }
+    
+    class LoginScreen {
+        -TextEditingController usuarioCtrl
+        -TextEditingController passwordCtrl
+        -bool mostrarPassword
+        --
+        +void iniciarSesion()
+        +void validarFormulario()
+    }
+    
+    class HomeScreen {
+        -int tabActual
+        --
+        +void cargarEnvios()
+        +void navegarADetalle(Envio)
+        +void cerrarSesion()
+    }
+    
+    class EnvioDetalleScreen {
+        +Envio envio
+        --
+        +void iniciarRuta()
+        +void verMapa()
+        +void confirmarEntrega()
+    }
+    
+    class MapaScreen {
+        -MapController mapController
+        -List<LatLng> puntosRuta
+        --
+        +void cargarRuta()
+        +void centrarEnDestino()
+        +void abrirNavegacionExterna()
+    }
+    
+    class EntregaScreen {
+        -Uint8List? fotoEvidencia
+        -Position? ubicacionActual
+        -String nombreReceptor
+        --
+        +void capturarFoto()
+        +void obtenerUbicacion()
+        +void confirmarEntrega()
+    }
+    
+    class HistorialScreen {
+        --
+        +void cargarHistorial()
+        +void verDetalle(Envio)
+    }
+}
+
+' Relaciones entre clases
+AuthProvider --> Usuario : gestiona
+AuthProvider --> ApiService : usa
+EnviosProvider --> Envio : gestiona lista
+EnviosProvider --> ApiService : usa
+EnviosProvider --> ConfirmacionEntrega : crea
+
+LoginScreen --> AuthProvider : usa
+HomeScreen --> EnviosProvider : usa
+HomeScreen --> AuthProvider : verifica
+EnvioDetalleScreen --> EnviosProvider : usa
+MapaScreen --> RouteService : usa
+EntregaScreen --> CameraService : usa
+EntregaScreen --> LocationService : usa
+EntregaScreen --> EnviosProvider : confirma
+
+@enduml

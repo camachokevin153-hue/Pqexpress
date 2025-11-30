@@ -1,0 +1,83 @@
+@startuml Diagrama de Componentes - Arquitectura
+!theme cerulean-outline
+title PQExpress - Arquitectura del Sistema
+
+skinparam component {
+    BackgroundColor<<flutter>> #02569B
+    FontColor<<flutter>> White
+    BackgroundColor<<python>> #3776AB
+    FontColor<<python>> White
+    BackgroundColor<<mysql>> #4479A1
+    FontColor<<mysql>> White
+    BackgroundColor<<external>> #757575
+    FontColor<<external>> White
+}
+
+package "Cliente Móvil (Flutter)" <<flutter>> {
+    
+    component [Screens\n(UI)] as screens
+    component [Providers\n(Estado)] as providers
+    component [Services\n(Lógica)] as services
+    component [Models\n(Datos)] as models
+    
+    screens --> providers : notifyListeners
+    providers --> services : llamadas
+    services --> models : parseo
+}
+
+package "Backend (FastAPI)" <<python>> {
+    
+    component [Routers\n(Endpoints)] as routers
+    component [Schemas\n(Pydantic)] as schemas
+    component [Models\n(SQLAlchemy)] as orm
+    component [Security\n(JWT/bcrypt)] as security
+    component [Database\n(Conexión)] as dbconn
+    
+    routers --> schemas : validación
+    routers --> security : autenticación
+    routers --> orm : ORM
+    orm --> dbconn : sesiones
+}
+
+database "MySQL 8.0" <<mysql>> as mysql {
+    [repartidores]
+    [tokens_sesion]
+    [envios]
+    [confirmaciones_entrega]
+}
+
+cloud "Servicios Externos" <<external>> {
+    component [OpenStreetMap\n(Tiles)] as osm
+    component [OSRM\n(Rutas)] as osrm
+    component [Geolocator\n(GPS)] as geo
+    component [Image Picker\n(Cámara)] as imgpick
+}
+
+' Conexiones principales
+services -down-> routers : HTTP/REST\nport 8000
+dbconn -down-> mysql : MySQL Protocol\nport 3306
+
+' Servicios externos
+services --> osm : GET tiles
+services --> osrm : GET route
+services --> geo : getPosition()
+services --> imgpick : pickImage()
+
+note right of mysql
+  **Base de datos:**
+  pqexpress_db
+  
+  **Encoding:**
+  utf8mb4_unicode_ci
+end note
+
+note left of routers
+  **Endpoints:**
+  /api/auth/*
+  /api/envios/*
+  
+  **Auth:**
+  JWT Bearer Token
+end note
+
+@enduml

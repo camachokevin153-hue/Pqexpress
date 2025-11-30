@@ -1,0 +1,86 @@
+@startuml Diagrama de Actividades - Proceso de Entrega
+!theme cerulean-outline
+title PQExpress - Proceso de Entrega de Paquete
+
+start
+
+:Repartidor abre la aplicación;
+
+if (¿Token válido?) then (no)
+    :Mostrar pantalla de Login;
+    :Ingresar credenciales;
+    :Enviar a API /auth/login;
+    
+    if (¿Credenciales correctas?) then (no)
+        :Mostrar error;
+        stop
+    else (sí)
+        :Guardar token JWT;
+        :Guardar datos de usuario;
+    endif
+else (sí)
+    :Sesión activa;
+endif
+
+:Cargar lista de envíos\ndesde API;
+
+:Mostrar envíos en tabs:\n- En Camino\n- Pendientes;
+
+:Repartidor selecciona\nun envío;
+
+:Mostrar detalle del envío:\n- Datos del destinatario\n- Dirección completa\n- Mapa de ubicación;
+
+if (¿Iniciar ruta?) then (sí)
+    :Llamar API /iniciar-ruta;
+    :Actualizar estado a "EN_CAMINO";
+    :Mostrar mapa con ruta;
+    
+    fork
+        :Cargar tiles de\nOpenStreetMap;
+    fork again
+        :Calcular ruta\ncon OSRM;
+    end fork
+    
+    :Mostrar marcadores\ny línea de ruta;
+    
+    if (¿Abrir navegación externa?) then (sí)
+        :Abrir Google Maps\no Waze;
+    endif
+else (no)
+    :Volver a la lista;
+endif
+
+:Repartidor llega al destino;
+
+:Click en "Confirmar Entrega";
+
+partition "Captura de Evidencias" {
+    fork
+        :Solicitar permisos\nde cámara;
+        :Capturar foto\nde evidencia;
+        :Convertir a Base64;
+    fork again
+        :Solicitar permisos\nde ubicación;
+        :Obtener coordenadas GPS;
+        :Registrar precisión;
+    end fork
+}
+
+:Ingresar nombre\ndel receptor;
+
+:Click en "Confirmar";
+
+:Enviar a API:\n- Foto Base64\n- Lat/Lng GPS\n- Nombre receptor\n- Comentarios;
+
+if (¿Entrega exitosa?) then (sí)
+    :Actualizar estado\na "COMPLETADO";
+    :Mostrar confirmación;
+    :Volver a lista de envíos;
+else (no)
+    :Mostrar error;
+    :Permitir reintentar;
+endif
+
+stop
+
+@enduml

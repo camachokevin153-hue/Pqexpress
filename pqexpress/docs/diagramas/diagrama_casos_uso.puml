@@ -1,0 +1,77 @@
+@startuml Diagrama de Casos de Uso
+!theme cerulean-outline
+title PQExpress - Casos de Uso del Sistema
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Repartidor" as rep
+actor "Sistema GPS" as gps
+actor "Cámara" as cam
+actor "API REST" as api
+
+rectangle "Sistema PQExpress" {
+    
+    package "Autenticación" {
+        usecase "Iniciar Sesión" as UC1
+        usecase "Cerrar Sesión" as UC2
+        usecase "Validar Token" as UC3
+    }
+    
+    package "Gestión de Envíos" {
+        usecase "Ver Lista de Envíos" as UC4
+        usecase "Ver Detalle de Envío" as UC5
+        usecase "Iniciar Ruta" as UC6
+        usecase "Ver Historial" as UC7
+    }
+    
+    package "Entrega de Paquetes" {
+        usecase "Capturar Foto\nde Evidencia" as UC8
+        usecase "Obtener Ubicación\nGPS" as UC9
+        usecase "Confirmar Entrega" as UC10
+        usecase "Registrar Nombre\ndel Receptor" as UC11
+    }
+    
+    package "Navegación" {
+        usecase "Ver Mapa\nInteractivo" as UC12
+        usecase "Visualizar Ruta" as UC13
+        usecase "Abrir Navegación\nExterna" as UC14
+    }
+}
+
+' Relaciones del Repartidor
+rep --> UC1
+rep --> UC2
+rep --> UC4
+rep --> UC5
+rep --> UC6
+rep --> UC7
+rep --> UC8
+rep --> UC9
+rep --> UC10
+rep --> UC11
+rep --> UC12
+rep --> UC13
+rep --> UC14
+
+' Relaciones con sistemas externos
+UC8 --> cam
+UC9 --> gps
+UC1 --> api
+UC3 --> api
+UC4 --> api
+UC6 --> api
+UC10 --> api
+
+' Dependencias entre casos de uso
+UC4 ..> UC3 : <<include>>
+UC5 ..> UC3 : <<include>>
+UC6 ..> UC5 : <<extend>>
+UC10 ..> UC8 : <<include>>
+UC10 ..> UC9 : <<include>>
+UC10 ..> UC11 : <<include>>
+UC12 ..> UC5 : <<extend>>
+UC13 ..> UC12 : <<include>>
+
+@enduml

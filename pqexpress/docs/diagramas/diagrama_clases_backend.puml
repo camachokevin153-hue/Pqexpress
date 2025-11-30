@@ -1,0 +1,201 @@
+@startuml Diagrama de Clases - FastAPI (Backend)
+!theme cerulean-outline
+title PQExpress - Diagrama de Clases Backend (FastAPI + SQLAlchemy)
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Enums" #FFEBEE {
+    enum EstatusEnvio {
+        ASIGNADO
+        EN_CAMINO
+        COMPLETADO
+        FALLIDO
+    }
+    
+    enum ResultadoEntrega {
+        EXITOSA
+        RECHAZADA
+        PARCIAL
+    }
+}
+
+package "Models (SQLAlchemy ORM)" #E8F5E9 {
+    class Repartidor <<Entity>> {
+        +id_repartidor: Integer <<PK>>
+        +usuario: String(60) <<UNIQUE>>
+        +clave_hash: String(255)
+        +correo: String(120) <<UNIQUE>>
+        +nombre_completo: String(120)
+        +num_telefono: String(25)
+        +esta_activo: Boolean
+        +fecha_alta: DateTime
+        +ultima_conexion: DateTime
+        --
+        +tokens: List[TokenSesion]
+        +envios: List[Envio]
+        +confirmaciones: List[ConfirmacionEntrega]
+    }
+    
+    class TokenSesion <<Entity>> {
+        +id_token: Integer <<PK>>
+        +id_repartidor: Integer <<FK>>
+        +jwt_token: Text
+        +info_dispositivo: String(300)
+        +direccion_ip: String(50)
+        +creado_en: DateTime
+        +expira_en: DateTime
+        +token_activo: Boolean
+        --
+        +repartidor: Repartidor
+    }
+    
+    class Envio <<Entity>> {
+        +id_envio: Integer <<PK>>
+        +numero_guia: String(25) <<UNIQUE>>
+        +id_repartidor: Integer <<FK>>
+        +receptor_nombre: String(120)
+        +receptor_telefono: String(25)
+        +calle: String(220)
+        +numero_exterior: String(25)
+        +colonia: String(120)
+        +municipio_ciudad: String(120)
+        +codigo_postal: String(12)
+        +referencias_adicionales: Text
+        +lat_destino: Decimal(10,8)
+        +lng_destino: Decimal(11,8)
+        +estatus_envio: EstatusEnvio
+        +fecha_asignacion: DateTime
+        +fecha_completado: DateTime
+        +observaciones: Text
+        +creado_en: DateTime
+        +modificado_en: DateTime
+        --
+        +repartidor: Repartidor
+        +confirmacion: ConfirmacionEntrega
+    }
+    
+    class ConfirmacionEntrega <<Entity>> {
+        +id_confirmacion: Integer <<PK>>
+        +id_envio: Integer <<FK, UNIQUE>>
+        +id_repartidor: Integer <<FK>>
+        +lat_confirmacion: Decimal(10,8)
+        +lng_confirmacion: Decimal(11,8)
+        +precision_metros: Decimal(10,2)
+        +imagen_evidencia: LongText
+        +nombre_receptor: String(120)
+        +resultado_entrega: ResultadoEntrega
+        +razon_fallo: Text
+        +comentarios: Text
+        +registrado_en: DateTime
+        --
+        +envio: Envio
+        +repartidor: Repartidor
+    }
+}
+
+package "Schemas (Pydantic)" #E3F2FD {
+    class LoginRequest <<DTO>> {
+        +usuario: str
+        +password: str
+    }
+    
+    class LoginResponse <<DTO>> {
+        +access_token: str
+        +token_type: str
+        +usuario: RepartidorResponse
+    }
+    
+    class RepartidorResponse <<DTO>> {
+        +id_repartidor: int
+        +usuario: str
+        +correo: str
+        +nombre_completo: str
+        +num_telefono: str?
+        +esta_activo: bool
+    }
+    
+    class EnvioResponse <<DTO>> {
+        +id_envio: int
+        +numero_guia: str
+        +receptor_nombre: str
+        +receptor_telefono: str?
+        +direccion_completa: str
+        +lat_destino: float?
+        +lng_destino: float?
+        +estatus_envio: str
+        +fecha_asignacion: datetime?
+    }
+    
+    class ConfirmacionRequest <<DTO>> {
+        +lat_confirmacion: float
+        +lng_confirmacion: float
+        +precision_metros: float?
+        +imagen_evidencia: str?
+        +nombre_receptor: str?
+        +resultado_entrega: str
+        +comentarios: str?
+    }
+}
+
+package "Routers (API Endpoints)" #FFF3E0 {
+    class AuthRouter <<Controller>> {
+        --
+        +POST /login
+        +POST /logout
+        +GET /me
+        +GET /validar-token
+    }
+    
+    class EnviosRouter <<Controller>> {
+        --
+        +GET /
+        +GET /{id}
+        +POST /{id}/iniciar-ruta
+        +POST /{id}/confirmar-entrega
+    }
+}
+
+package "Security" #FCE4EC {
+    class Security <<Service>> {
+        -SECRET_KEY: str
+        -ALGORITHM: str
+        -ACCESS_TOKEN_EXPIRE_HOURS: int
+        --
+        +hash_password(password: str): str
+        +verify_password(plain, hashed): bool
+        +create_access_token(data: dict): str
+        +decode_token(token: str): dict
+        +get_current_user(token: str): Repartidor
+    }
+}
+
+package "Database" #F3E5F5 {
+    class Database <<Config>> {
+        +SQLALCHEMY_DATABASE_URL: str
+        +engine: Engine
+        +SessionLocal: sessionmaker
+        +Base: declarative_base
+        --
+        +get_db(): Generator[Session]
+    }
+}
+
+' Relaciones ORM
+Repartidor "1" --> "*" TokenSesion : tiene
+Repartidor "1" --> "*" Envio : asignado
+Repartidor "1" --> "*" ConfirmacionEntrega : registra
+Envio "1" --> "0..1" ConfirmacionEntrega : tiene
+
+' Relaciones de uso
+AuthRouter --> Security : usa
+AuthRouter --> Repartidor : autentica
+AuthRouter --> TokenSesion : crea/invalida
+EnviosRouter --> Envio : gestiona
+EnviosRouter --> ConfirmacionEntrega : registra
+EnviosRouter --> Security : valida token
+
+' Enums
+Envio --> EstatusEnvio : usa
+ConfirmacionEntrega --> ResultadoEntrega : usa
+
+@enduml

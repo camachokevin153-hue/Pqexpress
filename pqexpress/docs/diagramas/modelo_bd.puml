@@ -1,0 +1,114 @@
+@startuml Modelo Entidad-Relación - Base de Datos
+!theme cerulean-outline
+title PQExpress - Modelo de Base de Datos MySQL
+skinparam linetype ortho
+
+' Configuración de estilo para tablas
+skinparam class {
+    BackgroundColor #FFFDE7
+    BorderColor #FFA000
+    HeaderBackgroundColor #FFB300
+}
+
+entity "repartidores" as repartidores {
+    * **id_repartidor** : INT <<PK, AI>>
+    --
+    * usuario : VARCHAR(60) <<UNIQUE, INDEX>>
+    * clave_hash : VARCHAR(255)
+    correo : VARCHAR(120) <<UNIQUE>>
+    * nombre_completo : VARCHAR(120)
+    num_telefono : VARCHAR(25)
+    esta_activo : BOOLEAN = TRUE <<INDEX>>
+    fecha_alta : DATETIME = NOW()
+    ultima_conexion : DATETIME
+}
+
+entity "tokens_sesion" as tokens {
+    * **id_token** : INT <<PK, AI>>
+    --
+    * id_repartidor : INT <<FK, INDEX>>
+    * jwt_token : TEXT
+    info_dispositivo : VARCHAR(300)
+    direccion_ip : VARCHAR(50)
+    creado_en : DATETIME = NOW()
+    * expira_en : DATETIME
+    token_activo : BOOLEAN = TRUE <<INDEX>>
+}
+
+entity "envios" as envios {
+    * **id_envio** : INT <<PK, AI>>
+    --
+    * numero_guia : VARCHAR(25) <<UNIQUE, INDEX>>
+    id_repartidor : INT <<FK, INDEX>>
+    * receptor_nombre : VARCHAR(120)
+    receptor_telefono : VARCHAR(25)
+    * calle : VARCHAR(220)
+    numero_exterior : VARCHAR(25)
+    colonia : VARCHAR(120)
+    municipio_ciudad : VARCHAR(120)
+    codigo_postal : VARCHAR(12)
+    referencias_adicionales : TEXT
+    lat_destino : DECIMAL(10,8)
+    lng_destino : DECIMAL(11,8)
+    estatus_envio : ENUM <<INDEX>>
+    fecha_asignacion : DATETIME
+    fecha_completado : DATETIME
+    observaciones : TEXT
+    creado_en : DATETIME = NOW()
+    modificado_en : DATETIME
+}
+
+entity "confirmaciones_entrega" as confirmaciones {
+    * **id_confirmacion** : INT <<PK, AI>>
+    --
+    * id_envio : INT <<FK, UNIQUE, INDEX>>
+    * id_repartidor : INT <<FK, INDEX>>
+    * lat_confirmacion : DECIMAL(10,8)
+    * lng_confirmacion : DECIMAL(11,8)
+    precision_metros : DECIMAL(10,2)
+    imagen_evidencia : LONGTEXT
+    nombre_receptor : VARCHAR(120)
+    * resultado_entrega : ENUM = 'exitosa'
+    razon_fallo : TEXT
+    comentarios : TEXT
+    registrado_en : DATETIME = NOW()
+}
+
+' Relaciones con cardinalidad
+repartidores ||--o{ tokens : "1:N\ntiene"
+repartidores ||--o{ envios : "1:N\nasignado"
+repartidores ||--o{ confirmaciones : "1:N\nregistra"
+envios ||--o| confirmaciones : "1:0..1\ntiene"
+
+note right of envios::estatus_envio
+  ENUM valores:
+  - 'asignado'
+  - 'en_camino'
+  - 'completado'
+  - 'fallido'
+end note
+
+note right of confirmaciones::resultado_entrega
+  ENUM valores:
+  - 'exitosa'
+  - 'rechazada'
+  - 'parcial'
+end note
+
+note bottom of repartidores
+  **Índices:**
+  - idx_usuario (usuario)
+  - idx_activo (esta_activo)
+  
+  **Contraseña:**
+  bcrypt con 12 rondas
+end note
+
+note bottom of confirmaciones
+  **Evidencias almacenadas:**
+  - Foto en Base64 (LONGTEXT)
+  - Coordenadas GPS
+  - Precisión del GPS
+end note
+
+@enduml
