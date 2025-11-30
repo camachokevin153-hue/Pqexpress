@@ -1,23 +1,28 @@
 # ============================================================
 # PQEXPRESS Backend - Dependencias Python
+# Ejecutar: pip install -r requirements.txt
 # ============================================================
 
 # Framework web
-fastapi>=0.100.0,<1.0.0
+fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 
-# Base de datos
+# Base de datos MySQL
 sqlalchemy>=2.0.0
 pymysql>=1.1.0
-cryptography>=41.0.0
 
 # Autenticación y seguridad
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.0
 python-multipart>=0.0.6
 
-# Utilidades
-python-dotenv>=1.0.0
+# Validación de datos
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
+email-validator>=2.0.0
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Extras para producción
+cryptography>=41.0.0
